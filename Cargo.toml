@@ -1,0 +1,6 @@
+[package]
+name = "bitcoin-donation"
+version = "0.1.0"
+authors = ["Cooper Paul EdenDay <cedenday@protonmail.com>"]
+
+[dependencies]
