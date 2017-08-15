@@ -21,7 +21,7 @@ struct GetMemPoolInfoOutput {
     bytes: u32,
     usage: u32,
     maxmempool: u32,
-    mempoolminfee: u32,
+    mempoolminfee: f32,
 }
 
 enum GetMemPoolInfo {}
