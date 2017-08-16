@@ -8,12 +8,8 @@ mod error;
 
 trait BitcoinCommand {
     const COMMAND: &'static str;
-    type InputFormat;
     type OutputFormat: for<'de> serde::Deserialize<'de>;
 }
-
-#[derive(Debug, Copy, Clone)]
-struct GetMemPoolInfoInput {}
 
 #[derive(Debug, Copy, Clone, Deserialize)]
 struct GetMemPoolInfoOutput {
@@ -28,7 +24,6 @@ enum GetMemPoolInfo {}
 
 impl BitcoinCommand for GetMemPoolInfo {
     const COMMAND: &'static str = "getmempoolinfo";
-    type InputFormat = GetMemPoolInfoInput;
     type OutputFormat = GetMemPoolInfoOutput;
 }
 
