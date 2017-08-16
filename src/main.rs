@@ -6,25 +6,25 @@ use std::process::Command;
 
 mod error;
 
+const TESTNET: bool = true;
+
 trait BitcoinCommand {
     const COMMAND: &'static str;
     type OutputFormat: for<'de> serde::Deserialize<'de>;
 }
 
-#[derive(Debug, Copy, Clone, Deserialize)]
-struct GetMemPoolInfoOutput {
-    size: u32,
-    bytes: u32,
-    usage: u32,
-    maxmempool: u32,
-    mempoolminfee: f32,
+enum GetNewAddress {}
+
+impl BitcoinCommand for GetNewAddress {
+    const COMMAND: &'static str = "getnewaddress";
+    type OutputFormat = String;
 }
 
-enum GetMemPoolInfo {}
+enum AddWitnessAddress {}
 
-impl BitcoinCommand for GetMemPoolInfo {
-    const COMMAND: &'static str = "getmempoolinfo";
-    type OutputFormat = GetMemPoolInfoOutput;
+impl BitcoinCommand for AddWitnessAddress {
+    const COMMAND: &'static str = "addwitnessaddress";
+    type OutputFormat = String;
 }
 
 fn execute<X: BitcoinCommand>(testnet: bool, input: &[&str]) -> error::Result<X::OutputFormat> {
@@ -42,7 +42,9 @@ fn execute<X: BitcoinCommand>(testnet: bool, input: &[&str]) -> error::Result<X:
 }
 
 fn main() {
-    let y = execute::<GetMemPoolInfo>(true, &[]).unwrap();
+    let pay_to_public_key_hash_address = execute::<GetNewAddress>(TESTNET, &[]).unwrap();
+    let segregated_witness_pay_to_script_hash_address =
+        execute::<AddWitnessAddress>(TESTNET, &[&pay_to_public_key_hash_address]).unwrap();
 
-    println!("{:?}", y);
+    println!("{}", segregated_witness_pay_to_script_hash_address);
 }
