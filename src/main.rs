@@ -9,7 +9,7 @@ extern crate tokio_core;
 use std::io::{self, Write};
 use futures::{Future, Stream};
 use hyper::{Body, Client, Method, Request, StatusCode, Uri};
-use hyper::header::{ContentLength, ContentType};
+use hyper::header::{Authorization, Basic, ContentLength, ContentType};
 use tokio_core::reactor::Core;
 
 use hyper::client::HttpConnector;
@@ -47,10 +47,13 @@ fn execute<X: BitcoinCommand>(
     core: &mut Core,
     client: &Client<HttpConnector, Body>,
     server: Uri,
+    credentials: Basic,
     params: &[&str],
 ) -> error::Result<X::OutputFormat> {
     let mut request = Request::new(Method::Post, server);
     request.headers_mut().set(ContentType::plaintext());
+
+    request.headers_mut().set(Authorization(credentials));
 
     let input = RpcInput {
         jsonrpc: 2.0,
@@ -80,12 +83,21 @@ fn main() {
     let client = Client::new(&core.handle());
 
     let uri: Uri = "http://127.0.0.1:18332/".parse().unwrap();
+    let credentials: Basic = Basic {
+        username: String::new(),
+        password: Some(String::from("ncMGIndJmnSo9YUd11iT")),
+    };
 
     let pay_to_public_key_hash_address =
-        execute::<GetNewAddress>(&mut core, &client, uri.clone(), &[]).unwrap();
-    let segregated_witness_pay_to_script_hash_address =
-        execute::<AddWitnessAddress>(&mut core, &client, uri, &[&pay_to_public_key_hash_address])
+        execute::<GetNewAddress>(&mut core, &client, uri.clone(), credentials.clone(), &[])
             .unwrap();
+    let segregated_witness_pay_to_script_hash_address = execute::<AddWitnessAddress>(
+        &mut core,
+        &client,
+        uri,
+        credentials,
+        &[&pay_to_public_key_hash_address],
+    ).unwrap();
 
     println!("{}", segregated_witness_pay_to_script_hash_address);
 }
