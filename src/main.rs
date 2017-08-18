@@ -2,11 +2,19 @@
 extern crate serde;
 extern crate serde_json;
 
-use std::process::Command;
+extern crate futures;
+extern crate hyper;
+extern crate tokio_core;
+
+use std::io::{self, Write};
+use futures::{Future, Stream};
+use hyper::{Body, Client, Method, Request, StatusCode, Uri};
+use hyper::header::{ContentLength, ContentType};
+use tokio_core::reactor::Core;
+
+use hyper::client::HttpConnector;
 
 mod error;
-
-const TESTNET: bool = true;
 
 trait BitcoinCommand {
     const COMMAND: &'static str;
@@ -27,24 +35,57 @@ impl BitcoinCommand for AddWitnessAddress {
     type OutputFormat = String;
 }
 
-fn execute<X: BitcoinCommand>(testnet: bool, input: &[&str]) -> error::Result<X::OutputFormat> {
-    let mut command = Command::new("bitcoin-cli");
+#[derive(Debug, Copy, Clone, Serialize)]
+struct RpcInput<'a> {
+    jsonrpc: f32,
+    id: Option<&'a str>,
+    method: &'a str,
+    params: &'a [&'a str],
+}
 
-    if testnet {
-        command.arg("-testnet");
-    }
+fn execute<X: BitcoinCommand>(
+    core: &mut Core,
+    client: &Client<HttpConnector, Body>,
+    server: Uri,
+    params: &[&str],
+) -> error::Result<X::OutputFormat> {
+    let mut request = Request::new(Method::Post, server);
+    request.headers_mut().set(ContentType::plaintext());
 
-    let raw_output = command.arg(X::COMMAND).args(input).output()?;
+    let input = RpcInput {
+        jsonrpc: 2.0,
+        id: None,
+        method: X::COMMAND,
+        params,
+    };
 
-    let output: X::OutputFormat = serde_json::from_slice(&raw_output.stdout)?;
+    let encoded_input = serde_json::to_vec(&input).unwrap();
 
-    Ok(output)
+    request
+        .headers_mut()
+        .set(ContentLength(encoded_input.len() as u64));
+    request.set_body(encoded_input);
+
+    let work = client.request(request).map(|res| {
+        println!("Response: {}", res.status());
+    });
+
+    core.run(work)?;
+
+    Err(error::Error::Http(hyper::Error::Status))
 }
 
 fn main() {
-    let pay_to_public_key_hash_address = execute::<GetNewAddress>(TESTNET, &[]).unwrap();
+    let mut core = Core::new().expect("Could not initialize tokio");
+    let client = Client::new(&core.handle());
+
+    let uri: Uri = "http://127.0.0.1:18332/".parse().unwrap();
+
+    let pay_to_public_key_hash_address =
+        execute::<GetNewAddress>(&mut core, &client, uri.clone(), &[]).unwrap();
     let segregated_witness_pay_to_script_hash_address =
-        execute::<AddWitnessAddress>(TESTNET, &[&pay_to_public_key_hash_address]).unwrap();
+        execute::<AddWitnessAddress>(&mut core, &client, uri, &[&pay_to_public_key_hash_address])
+            .unwrap();
 
     println!("{}", segregated_witness_pay_to_script_hash_address);
 }

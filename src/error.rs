@@ -1,16 +1,16 @@
-use std::io;
+use hyper;
 use std::result;
 use serde_json;
 
 #[derive(Debug)]
 pub enum Error {
-    Io(io::Error),
+    Http(hyper::Error),
     Json(serde_json::Error),
 }
 
-impl From<io::Error> for Error {
-    fn from(error: io::Error) -> Self {
-        Error::Io(error)
+impl From<hyper::Error> for Error {
+    fn from(error: hyper::Error) -> Self {
+        Error::Http(error)
     }
 }
 
