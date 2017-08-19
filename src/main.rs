@@ -25,6 +25,7 @@ extern crate futures;
 extern crate hyper;
 extern crate tokio_core;
 
+use std::process::exit;
 use std::env::args;
 use std::io::{self, stderr, stdin, BufRead, Write};
 use hyper::header::Basic;
@@ -53,7 +54,51 @@ fn get_password() -> io::Result<String> {
     Ok(password)
 }
 
+enum Error {
+    Cli,
+    Uri(String),
+    Rpc(rpc_run::Error),
+}
+
+impl From<rpc_run::Error> for Error {
+    fn from(error: rpc_run::Error) -> Self {
+        Error::Rpc(error)
+    }
+}
+
 fn main() {
+    if let Err(error) = real_main() {
+        match error {
+            Error::Cli => eprintln!(
+                "Command line argument '`bitcoind` RPC URL' required.\n\
+                 Example: `http://localhost:18332/` for testnet on localhost."
+            ),
+            Error::Uri(error) => eprintln!("`bitcoind` RPC URL '{}' could not be parsed.", error),
+            Error::Rpc(rpc_run::Error::Http(error)) => eprintln!(
+                "Fatal error: \
+                 HTTP error: '{}'.",
+                error
+            ),
+            Error::Rpc(rpc_run::Error::Auth) => eprintln!(
+                "Fatal error: \
+                 authentication failure."
+            ),
+            Error::Rpc(rpc_run::Error::Json(error)) => eprintln!(
+                "Fatal error: \
+                 json error: '{}'.",
+                error
+            ),
+            Error::Rpc(rpc_run::Error::Rpc(error)) => eprintln!(
+                "Fatal error: \
+                 RPC error: '{}'.",
+                error.message
+            ),
+        }
+        exit(1);
+    }
+}
+
+fn real_main() -> Result<(), Error> {
     let mut core = Core::new().expect("Could not initialize tokio");
     let client = Client::new(&core.handle());
 
@@ -67,14 +112,14 @@ fn main() {
             };
 
             let pay_to_public_key_hash_address =
-                execute::<GetNewAddress>(&mut core, &client, &uri, &credentials, &[]).unwrap();
+                execute::<GetNewAddress>(&mut core, &client, &uri, &credentials, &[])?;
             let segregated_witness_pay_to_script_hash_address = execute::<AddWitnessAddress>(
                 &mut core,
                 &client,
                 &uri,
                 &credentials,
                 &[&pay_to_public_key_hash_address],
-            ).unwrap();
+            )?;
 
             // Assert some things about the newly generated address.
             {
@@ -84,7 +129,7 @@ fn main() {
                     &uri,
                     &credentials,
                     &[&segregated_witness_pay_to_script_hash_address],
-                ).unwrap();
+                )?;
 
                 assert_eq!(address_info.isvalid, true);
                 assert_eq!(address_info.ismine, Some(true));
@@ -92,13 +137,16 @@ fn main() {
             }
 
             println!("{}", segregated_witness_pay_to_script_hash_address);
+
+            Ok(())
         } else {
-            eprintln!("`bitcoind` RPC URL '{}' could not be parsed.", &uri_raw);
+
+
+            Err(Error::Uri(uri_raw))
         }
     } else {
-        eprintln!(
-            "Command line argument '`bitcoind` RPC URL' required.\n\
-             Example: `http://localhost:18332/` for testnet on localhost."
-        );
+
+
+        Err(Error::Cli)
     }
 }

@@ -24,6 +24,8 @@ use hyper::client::HttpConnector;
 pub mod error;
 pub mod commands;
 
+pub use self::error::{Error, Result};
+
 pub trait BitcoinCommand {
     const COMMAND: &'static str;
     type OutputFormat: for<'de> serde::Deserialize<'de>;
@@ -39,9 +41,9 @@ pub struct RpcInput<'a> {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct RpcError {
-    code: u32,
-    message: String,
-    data: Option<serde_json::Value>,
+    pub code: u32,
+    pub message: String,
+    pub data: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
