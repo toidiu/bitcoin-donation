@@ -1,4 +1,4 @@
-// bitcoin-donation - Generate a Bitcoin address for donations
+// bitcoin-donation - Generate a Bitcoin address for donations.
 // Copyright (C) 2017 Cooper Paul EdenDay
 //
 // This program is free software: you can redistribute it and/or modify
