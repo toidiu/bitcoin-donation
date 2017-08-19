@@ -6,6 +6,7 @@ extern crate futures;
 extern crate hyper;
 extern crate tokio_core;
 
+use std::env::args;
 use std::io::{self, stdin, stdout, BufRead, Write};
 use futures::{Future, Stream};
 use hyper::{Body, Chunk, Client, Method, Request, StatusCode, Uri};
@@ -127,24 +128,30 @@ fn main() {
     let mut core = Core::new().expect("Could not initialize tokio");
     let client = Client::new(&core.handle());
 
-    let uri: Uri = "http://127.0.0.1:18332/".parse().unwrap();
+    if let Some(uri_raw) = args().nth(1) {
+        if let Ok(uri) = uri_raw.parse() {
+            let credentials: Basic = Basic {
+                username: String::new(),
+                password: Some(
+                    get_password().expect("Failed to read RPC password from STDIN"),
+                ),
+            };
 
-    let credentials: Basic = Basic {
-        username: String::new(),
-        password: Some(
-            get_password().expect("Failed to read RPC password from STDIN"),
-        ),
-    };
+            let pay_to_public_key_hash_address =
+                execute::<GetNewAddress>(&mut core, &client, &uri, &credentials, &[]).unwrap();
+            let segregated_witness_pay_to_script_hash_address = execute::<AddWitnessAddress>(
+                &mut core,
+                &client,
+                &uri,
+                &credentials,
+                &[&pay_to_public_key_hash_address],
+            ).unwrap();
 
-    let pay_to_public_key_hash_address =
-        execute::<GetNewAddress>(&mut core, &client, &uri, &credentials, &[]).unwrap();
-    let segregated_witness_pay_to_script_hash_address = execute::<AddWitnessAddress>(
-        &mut core,
-        &client,
-        &uri,
-        &credentials,
-        &[&pay_to_public_key_hash_address],
-    ).unwrap();
-
-    println!("{}", segregated_witness_pay_to_script_hash_address);
+            println!("{}", segregated_witness_pay_to_script_hash_address);
+        } else {
+            println!("`bitcoind` RPC URL '{}' could not be parsed.", &uri_raw);
+        }
+    } else {
+        println!("Command line argument '`bitcoind` RPC URL' required.");
+    }
 }
