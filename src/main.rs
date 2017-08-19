@@ -6,12 +6,10 @@ extern crate futures;
 extern crate hyper;
 extern crate tokio_core;
 
-use std::io::{self, Write};
 use futures::{Future, Stream};
-use hyper::{Body, Client, Method, Request, StatusCode, Uri};
+use hyper::{Body, Chunk, Client, Method, Request, StatusCode, Uri};
 use hyper::header::{Authorization, Basic, ContentLength, ContentType};
 use tokio_core::reactor::Core;
-
 use hyper::client::HttpConnector;
 
 mod error;
@@ -21,6 +19,7 @@ trait BitcoinCommand {
     type OutputFormat: for<'de> serde::Deserialize<'de>;
 }
 
+#[derive(Debug)]
 enum GetNewAddress {}
 
 impl BitcoinCommand for GetNewAddress {
@@ -28,6 +27,7 @@ impl BitcoinCommand for GetNewAddress {
     type OutputFormat = String;
 }
 
+#[derive(Debug)]
 enum AddWitnessAddress {}
 
 impl BitcoinCommand for AddWitnessAddress {
@@ -35,12 +35,19 @@ impl BitcoinCommand for AddWitnessAddress {
     type OutputFormat = String;
 }
 
-#[derive(Debug, Copy, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 struct RpcInput<'a> {
     jsonrpc: f32,
     id: Option<&'a str>,
     method: &'a str,
     params: &'a [&'a str],
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct RpcOutput<T> {
+    result: Option<T>,
+    error: Option<String>,
+    id: Option<String>,
 }
 
 fn execute<X: BitcoinCommand>(
@@ -64,20 +71,38 @@ fn execute<X: BitcoinCommand>(
         params,
     };
 
-    let encoded_input = serde_json::to_vec(&input).unwrap();
+    let encoded_input = serde_json::to_vec(&input)?;
 
     request
         .headers_mut()
         .set(ContentLength(encoded_input.len() as u64));
     request.set_body(encoded_input);
 
-    let work = client
-        .request(request)
-        .map(|res| format!("Response: {}", res.status()));
+    let work = client.request(request).map(
+        |response| if response.status() == StatusCode::Ok {
+            Ok(response.body().concat2())
+        } else {
+            Err(error::Error::Http(hyper::Error::Status))
+        },
+    );
 
-    println!("{}", core.run(work)?);
+    let work = core.run(work)??.map(|body: Chunk| {
+        let x: RpcOutput<X::OutputFormat> = serde_json::from_slice(&body)?;
 
-    Err(error::Error::Http(hyper::Error::Status))
+        if let Some(output) = x.result {
+            Ok(output)
+        } else {
+            Err(error::Error::External(
+                x.error
+                    .expect("`error` should be present if `result` is not")
+                    .to_owned(),
+            ))
+        }
+    });
+
+    let x: error::Result<X::OutputFormat> = core.run(work)?;
+
+    x
 }
 
 fn main() {

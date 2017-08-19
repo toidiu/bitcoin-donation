@@ -6,6 +6,7 @@ use serde_json;
 pub enum Error {
     Http(hyper::Error),
     Json(serde_json::Error),
+    External(String),
 }
 
 impl From<hyper::Error> for Error {
