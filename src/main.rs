@@ -102,51 +102,42 @@ fn real_main() -> Result<(), Error> {
     let mut core = Core::new().expect("Could not initialize tokio");
     let client = Client::new(&core.handle());
 
-    if let Some(uri_raw) = args().nth(1) {
-        if let Ok(uri) = uri_raw.parse() {
-            let credentials: Basic = Basic {
-                username: String::new(),
-                password: Some(
-                    get_password().expect("Failed to read RPC password from STDIN"),
-                ),
-            };
+    let uri_raw = args().nth(1).ok_or(Error::Cli)?;
+    let uri = uri_raw.parse().map_err(|_| Error::Uri(uri_raw))?;
 
-            let pay_to_public_key_hash_address =
-                execute::<GetNewAddress>(&mut core, &client, &uri, &credentials, &[])?;
-            let segregated_witness_pay_to_script_hash_address = execute::<AddWitnessAddress>(
-                &mut core,
-                &client,
-                &uri,
-                &credentials,
-                &[&pay_to_public_key_hash_address],
-            )?;
+    let credentials: Basic = Basic {
+        username: String::new(),
+        password: Some(
+            get_password().expect("Failed to read RPC password from STDIN"),
+        ),
+    };
 
-            // Assert some things about the newly generated address.
-            {
-                let address_info = execute::<ValidateAddress>(
-                    &mut core,
-                    &client,
-                    &uri,
-                    &credentials,
-                    &[&segregated_witness_pay_to_script_hash_address],
-                )?;
+    let pay_to_public_key_hash_address =
+        execute::<GetNewAddress>(&mut core, &client, &uri, &credentials, &[])?;
+    let segregated_witness_pay_to_script_hash_address = execute::<AddWitnessAddress>(
+        &mut core,
+        &client,
+        &uri,
+        &credentials,
+        &[&pay_to_public_key_hash_address],
+    )?;
 
-                assert_eq!(address_info.isvalid, true);
-                assert_eq!(address_info.ismine, Some(true));
-                assert_eq!(address_info.iswatchonly, Some(false));
-            }
+    // Assert some things about the newly generated address.
+    {
+        let address_info = execute::<ValidateAddress>(
+            &mut core,
+            &client,
+            &uri,
+            &credentials,
+            &[&segregated_witness_pay_to_script_hash_address],
+        )?;
 
-            println!("{}", segregated_witness_pay_to_script_hash_address);
-
-            Ok(())
-        } else {
-
-
-            Err(Error::Uri(uri_raw))
-        }
-    } else {
-
-
-        Err(Error::Cli)
+        assert_eq!(address_info.isvalid, true);
+        assert_eq!(address_info.ismine, Some(true));
+        assert_eq!(address_info.iswatchonly, Some(false));
     }
+
+    println!("{}", segregated_witness_pay_to_script_hash_address);
+
+    Ok(())
 }
