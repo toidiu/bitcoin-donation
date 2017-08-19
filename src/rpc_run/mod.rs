@@ -97,7 +97,7 @@ pub fn execute<X: BitcoinCommand>(
         } else {
             Err(error::Error::Rpc(rpc_output.error.unwrap_or(RpcError {
                 code: -32603,
-                message: "RPC error could not be retrieved.",
+                message: "RPC error could not be retrieved.".to_owned(),
                 data: None,
             })))
         }
