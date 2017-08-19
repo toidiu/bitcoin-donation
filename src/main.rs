@@ -71,7 +71,7 @@ fn main() {
         match error {
             Error::Cli => eprintln!(
                 "Command line argument RPC URL required.\n\
-                 Example: `bitcoin-donation http://localhost:18332/` for testnet on localhost."
+                 Example (testnet on localhost): `bitcoin-donation http://localhost:18332/`."
             ),
             Error::Uri(error) => eprintln!("RPC URL '{}' could not be parsed.", error),
             Error::Rpc(rpc_run::Error::Http(error)) => eprintln!(
