@@ -17,13 +17,14 @@
 use hyper;
 use std::result;
 use serde_json;
+use super::RpcError;
 
 #[derive(Debug)]
 pub enum Error {
     Http(hyper::Error),
     Auth,
     Json(serde_json::Error),
-    Rpc(::RpcError),
+    Rpc(RpcError),
 }
 
 impl From<hyper::Error> for Error {

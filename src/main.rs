@@ -27,133 +27,14 @@ extern crate tokio_core;
 
 use std::env::args;
 use std::io::{self, stderr, stdin, BufRead, Write};
-use futures::{Future, Stream};
-use hyper::{Body, Chunk, Client, Method, Request, StatusCode, Uri};
-use hyper::header::{Authorization, Basic, ContentLength, ContentType};
+use hyper::header::Basic;
 use tokio_core::reactor::Core;
-use hyper::client::HttpConnector;
+use hyper::Client;
 
-mod error;
+mod rpc_run;
 
-trait BitcoinCommand {
-    const COMMAND: &'static str;
-    type OutputFormat: for<'de> serde::Deserialize<'de>;
-}
-
-enum GetNewAddress {}
-
-impl BitcoinCommand for GetNewAddress {
-    const COMMAND: &'static str = "getnewaddress";
-    type OutputFormat = String;
-}
-
-enum AddWitnessAddress {}
-
-impl BitcoinCommand for AddWitnessAddress {
-    const COMMAND: &'static str = "addwitnessaddress";
-    type OutputFormat = String;
-}
-
-// Docs borked, investigate.
-#[allow(non_snake_case)]
-#[derive(Debug, Clone, Deserialize)]
-struct ValidateAddressOutput {
-    isvalid: bool,
-    address: Option<String>,
-    scriptPubKey: Option<String>,
-    ismine: Option<bool>,
-    iswatchonly: Option<bool>,
-    isscript: Option<bool>,
-    pubkey: Option<String>,
-    iscompressed: Option<bool>,
-    account: Option<String>,
-    timestamp: Option<i64>,
-    hdkeypath: Option<String>,
-    hdmasterkeyid: Option<String>,
-}
-
-enum ValidateAddress {}
-
-impl BitcoinCommand for ValidateAddress {
-    const COMMAND: &'static str = "validateaddress";
-    type OutputFormat = ValidateAddressOutput;
-}
-
-#[derive(Debug, Clone, Serialize)]
-struct RpcInput<'a> {
-    jsonrpc: f32,
-    id: Option<&'a str>,
-    method: &'a str,
-    params: &'a [&'a str],
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct RpcError {
-    code: u32,
-    message: String,
-    data: Option<serde_json::Value>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-struct RpcOutput<T> {
-    result: Option<T>,
-    error: Option<RpcError>,
-    id: Option<String>,
-}
-
-fn execute<X: BitcoinCommand>(
-    core: &mut Core,
-    client: &Client<HttpConnector, Body>,
-    server: &Uri,
-    credentials: &Basic,
-    params: &[&str],
-) -> error::Result<X::OutputFormat> {
-    let mut request = Request::new(Method::Post, server.clone());
-    request.headers_mut().set(ContentType::json());
-
-    request
-        .headers_mut()
-        .set(Authorization(credentials.clone()));
-
-    let input = RpcInput {
-        jsonrpc: 2.0,
-        id: None,
-        method: X::COMMAND,
-        params,
-    };
-
-    let encoded_input = serde_json::to_vec(&input)?;
-
-    request
-        .headers_mut()
-        .set(ContentLength(encoded_input.len() as u64));
-    request.set_body(encoded_input);
-
-    let check_status = client.request(request).map(
-        |response| match response.status() {
-            StatusCode::Ok => Ok(response.body().concat2()),
-            StatusCode::Unauthorized => Err(error::Error::Auth),
-            _ => Err(error::Error::Http(hyper::Error::Status)),
-        },
-    );
-
-    let decode_body = core.run(check_status)??.map(|body: Chunk| {
-        let x: RpcOutput<X::OutputFormat> = serde_json::from_slice(&body)?;
-
-        if let Some(output) = x.result {
-            Ok(output)
-        } else {
-            Err(error::Error::Rpc(
-                x.error
-                    .expect("`error` should be present if `result` is not"),
-            ))
-        }
-    });
-
-    let output: error::Result<X::OutputFormat> = core.run(decode_body)?;
-
-    output
-}
+use rpc_run::execute;
+use rpc_run::commands::*;
 
 fn get_password() -> io::Result<String> {
     let stdin = stdin();
