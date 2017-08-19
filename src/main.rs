@@ -70,10 +70,10 @@ fn main() {
     if let Err(error) = real_main() {
         match error {
             Error::Cli => eprintln!(
-                "Command line argument '`bitcoind` RPC URL' required.\n\
-                 Example: `http://localhost:18332/` for testnet on localhost."
+                "Command line argument RPC URL required.\n\
+                 Example: `bitcoin-donation http://localhost:18332/` for testnet on localhost."
             ),
-            Error::Uri(error) => eprintln!("`bitcoind` RPC URL '{}' could not be parsed.", error),
+            Error::Uri(error) => eprintln!("RPC URL '{}' could not be parsed.", error),
             Error::Rpc(rpc_run::Error::Http(error)) => eprintln!(
                 "Fatal error: \
                  HTTP error: '{}'.",
@@ -99,7 +99,7 @@ fn main() {
 }
 
 fn real_main() -> Result<(), Error> {
-    let mut core = Core::new().expect("Could not initialize tokio");
+    let mut core = Core::new().expect("Could not initialize tokio core");
     let client = Client::new(&core.handle());
 
     let uri_raw = args().nth(1).ok_or(Error::Cli)?;
@@ -108,7 +108,7 @@ fn real_main() -> Result<(), Error> {
     let credentials: Basic = Basic {
         username: String::new(),
         password: Some(
-            get_password().expect("Failed to read RPC password from STDIN"),
+            get_password().expect("Failed to read RPC password from `stdin`"),
         ),
     };
 
