@@ -15,7 +15,6 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #![forbid(unsafe_code)]
-#![deny(warnings)]
 
 #[macro_use]
 extern crate serde;
@@ -26,8 +25,9 @@ extern crate hyper;
 extern crate tokio_core;
 
 use std::process::exit;
-use std::env::args;
-use std::io::{self, stderr, stdin, BufRead, Write};
+use std::env;
+use std::fs::File;
+use std::io::{self, stderr, stdin, BufRead, Read, Write};
 use hyper::header::Basic;
 use tokio_core::reactor::Core;
 use hyper::Client;
@@ -37,21 +37,44 @@ mod rpc_run;
 use rpc_run::execute;
 use rpc_run::commands::*;
 
+fn get_password_config() -> io::Result<Option<String>> {
+    if let Some(mut config_path) = env::home_dir() {
+        config_path.push(".bitcoin");
+        config_path.push("bitcoin.conf");
+        let mut config_file = File::open(config_path)?;
+        let mut raw_config = String::new();
+        config_file.read_to_string(&mut raw_config)?;
+        for line in raw_config.lines() {
+            let mut split = line.splitn(2, "=");
+            if split.next() == Some("rpcpassword") {
+                if let Some(password) = split.next() {
+                    return Ok(Some(password.to_owned()));
+                }
+            }
+        }
+    }
+    Ok(None)
+}
+
 fn get_password() -> io::Result<String> {
-    let stdin = stdin();
-    let stderr = stderr();
-    let mut stdin_lock = stdin.lock();
-    let mut stderr_lock = stderr.lock();
+    if let Ok(Some(password)) = get_password_config() {
+        Ok(password)
+    } else {
+        let stdin = stdin();
+        let stderr = stderr();
+        let mut stdin_lock = stdin.lock();
+        let mut stderr_lock = stderr.lock();
 
-    stderr_lock.write_all("Input RPC password: ".as_bytes())?;
-    stderr_lock.flush()?;
+        stderr_lock.write_all("Input RPC password: ".as_bytes())?;
+        stderr_lock.flush()?;
 
-    let mut password = String::new();
-    stdin_lock.read_line(&mut password)?;
+        let mut password = String::new();
+        stdin_lock.read_line(&mut password)?;
 
-    password = password.trim().to_owned();
+        password = password.trim().to_owned();
 
-    Ok(password)
+        Ok(password)
+    }
 }
 
 enum Error {
@@ -102,7 +125,7 @@ fn real_main() -> Result<(), Error> {
     let mut core = Core::new().expect("Could not initialize tokio core");
     let client = Client::new(&core.handle());
 
-    let uri_raw = args().nth(1).ok_or(Error::Cli)?;
+    let uri_raw = env::args().nth(1).ok_or(Error::Cli)?;
     let uri = uri_raw.parse().map_err(|_| Error::Uri(uri_raw))?;
 
     let credentials: Basic = Basic {
