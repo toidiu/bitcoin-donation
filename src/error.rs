@@ -21,6 +21,7 @@ use serde_json;
 #[derive(Debug)]
 pub enum Error {
     Http(hyper::Error),
+    Auth,
     Json(serde_json::Error),
     Rpc(::RpcError),
 }

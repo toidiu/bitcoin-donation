@@ -130,10 +130,10 @@ fn execute<X: BitcoinCommand>(
     request.set_body(encoded_input);
 
     let check_status = client.request(request).map(
-        |response| if response.status() == StatusCode::Ok {
-            Ok(response.body().concat2())
-        } else {
-            Err(error::Error::Http(hyper::Error::Status))
+        |response| match response.status() {
+            StatusCode::Ok => Ok(response.body().concat2()),
+            StatusCode::Unauthorized => Err(error::Error::Auth),
+            _ => Err(error::Error::Http(hyper::Error::Status)),
         },
     );
 
