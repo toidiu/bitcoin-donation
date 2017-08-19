@@ -6,6 +6,7 @@ extern crate futures;
 extern crate hyper;
 extern crate tokio_core;
 
+use std::io::{stdin, BufRead};
 use futures::{Future, Stream};
 use hyper::{Body, Chunk, Client, Method, Request, StatusCode, Uri};
 use hyper::header::{Authorization, Basic, ContentLength, ContentType};
@@ -58,7 +59,7 @@ fn execute<X: BitcoinCommand>(
     params: &[&str],
 ) -> error::Result<X::OutputFormat> {
     let mut request = Request::new(Method::Post, server.clone());
-    request.headers_mut().set(ContentType::plaintext());
+    request.headers_mut().set(ContentType::json());
 
     request
         .headers_mut()
@@ -110,9 +111,19 @@ fn main() {
     let client = Client::new(&core.handle());
 
     let uri: Uri = "http://127.0.0.1:18332/".parse().unwrap();
+
+    let stdin = stdin();
+    let mut stdin_lock = stdin.lock();
+    println!("Input RPC password:");
+    let mut password = String::new();
+    stdin_lock
+        .read_line(&mut password)
+        .expect("Failed to read line from STDIN");
+    drop(stdin_lock);
+
     let credentials: Basic = Basic {
         username: String::new(),
-        password: Some(String::from("ncMGIndJmnSo9YUd11iT")),
+        password: Some(password),
     };
 
     let pay_to_public_key_hash_address =
