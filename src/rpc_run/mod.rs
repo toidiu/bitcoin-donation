@@ -61,7 +61,7 @@ pub fn execute<X: BitcoinCommand>(
     params: &[&str],
 ) -> error::Result<X::OutputFormat> {
     let mut request = Request::new(Method::Post, server.clone());
-    request.headers_mut().set(ContentType::json());
+    request.headers_mut().set(ContentType::plaintext());
 
     request
         .headers_mut()
