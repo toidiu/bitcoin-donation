@@ -1,3 +1,5 @@
+#![deny(warnings)]
+
 #[macro_use]
 extern crate serde;
 extern crate serde_json;
@@ -36,6 +38,7 @@ impl BitcoinCommand for AddWitnessAddress {
 }
 
 // Docs borked, investigate.
+#[allow(non_snake_case)]
 #[derive(Debug, Clone, Deserialize)]
 struct ValidateAddressOutput {
     isvalid: bool,
@@ -175,6 +178,7 @@ fn main() {
                 &[&pay_to_public_key_hash_address],
             ).unwrap();
 
+            // Assert some things about the newly generated address.
             {
                 let address_info = execute::<ValidateAddress>(
                     &mut core,
@@ -194,6 +198,9 @@ fn main() {
             eprintln!("`bitcoind` RPC URL '{}' could not be parsed.", &uri_raw);
         }
     } else {
-        eprintln!("Command line argument '`bitcoind` RPC URL' required.");
+        eprintln!(
+            "Command line argument '`bitcoind` RPC URL' required.\n\
+             Example: `http://localhost:18332/` for testnet on localhost."
+        );
     }
 }
