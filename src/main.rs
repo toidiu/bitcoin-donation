@@ -78,7 +78,7 @@ fn execute<X: BitcoinCommand>(
         .set(ContentLength(encoded_input.len() as u64));
     request.set_body(encoded_input);
 
-    let work = client.request(request).map(
+    let check_status = client.request(request).map(
         |response| if response.status() == StatusCode::Ok {
             Ok(response.body().concat2())
         } else {
@@ -86,7 +86,7 @@ fn execute<X: BitcoinCommand>(
         },
     );
 
-    let work = core.run(work)??.map(|body: Chunk| {
+    let decode_body = core.run(check_status)??.map(|body: Chunk| {
         let x: RpcOutput<X::OutputFormat> = serde_json::from_slice(&body)?;
 
         if let Some(output) = x.result {
@@ -100,9 +100,9 @@ fn execute<X: BitcoinCommand>(
         }
     });
 
-    let x: error::Result<X::OutputFormat> = core.run(work)?;
+    let output: error::Result<X::OutputFormat> = core.run(decode_body)?;
 
-    x
+    output
 }
 
 fn main() {
