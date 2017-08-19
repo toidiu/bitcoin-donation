@@ -118,6 +118,8 @@ fn get_password() -> io::Result<String> {
     let mut password = String::new();
     stdin_lock.read_line(&mut password)?;
 
+    password = password.trim().to_owned();
+
     Ok(password)
 }
 
