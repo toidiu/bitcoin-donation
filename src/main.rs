@@ -6,7 +6,7 @@ extern crate futures;
 extern crate hyper;
 extern crate tokio_core;
 
-use std::io::{stdin, BufRead};
+use std::io::{self, stdin, stdout, BufRead, Write};
 use futures::{Future, Stream};
 use hyper::{Body, Chunk, Client, Method, Request, StatusCode, Uri};
 use hyper::header::{Authorization, Basic, ContentLength, ContentType};
@@ -106,24 +106,32 @@ fn execute<X: BitcoinCommand>(
     output
 }
 
+fn get_password() -> io::Result<String> {
+    let stdin = stdin();
+    let stdout = stdout();
+    let mut stdin_lock = stdin.lock();
+    let mut stdout_lock = stdout.lock();
+
+    stdout_lock.write_all("Input RPC password: ".as_bytes())?;
+    stdout_lock.flush()?;
+
+    let mut password = String::new();
+    stdin_lock.read_line(&mut password)?;
+
+    Ok(password)
+}
+
 fn main() {
     let mut core = Core::new().expect("Could not initialize tokio");
     let client = Client::new(&core.handle());
 
     let uri: Uri = "http://127.0.0.1:18332/".parse().unwrap();
 
-    let stdin = stdin();
-    let mut stdin_lock = stdin.lock();
-    println!("Input RPC password:");
-    let mut password = String::new();
-    stdin_lock
-        .read_line(&mut password)
-        .expect("Failed to read line from STDIN");
-    drop(stdin_lock);
-
     let credentials: Basic = Basic {
         username: String::new(),
-        password: Some(password),
+        password: Some(
+            get_password().expect("Failed to read RPC password from STDIN"),
+        ),
     };
 
     let pay_to_public_key_hash_address =
