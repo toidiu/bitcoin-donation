@@ -41,7 +41,7 @@ pub struct RpcInput<'a> {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct RpcError {
-    pub code: u32,
+    pub code: i32,
     pub message: String,
     pub data: Option<serde_json::Value>,
 }
@@ -90,15 +90,16 @@ pub fn execute<X: BitcoinCommand>(
     );
 
     let decode_body = core.run(check_status)??.map(|body: Chunk| {
-        let x: RpcOutput<X::OutputFormat> = serde_json::from_slice(&body)?;
+        let rpc_output: RpcOutput<X::OutputFormat> = serde_json::from_slice(&body)?;
 
-        if let Some(output) = x.result {
+        if let Some(output) = rpc_output.result {
             Ok(output)
         } else {
-            Err(error::Error::Rpc(
-                x.error
-                    .expect("`error` should be present if `result` is not"),
-            ))
+            Err(error::Error::Rpc(rpc_output.error.unwrap_or(RpcError {
+                code: -32603,
+                message: "RPC error could not be retrieved.",
+                data: None,
+            })))
         }
     });
 
