@@ -7,7 +7,7 @@ extern crate hyper;
 extern crate tokio_core;
 
 use std::env::args;
-use std::io::{self, stdin, stdout, BufRead, Write};
+use std::io::{self, stderr, stdin, BufRead, Write};
 use futures::{Future, Stream};
 use hyper::{Body, Chunk, Client, Method, Request, StatusCode, Uri};
 use hyper::header::{Authorization, Basic, ContentLength, ContentType};
@@ -46,9 +46,16 @@ struct RpcInput<'a> {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+pub struct RpcError {
+    code: u32,
+    message: String,
+    data: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
 struct RpcOutput<T> {
     result: Option<T>,
-    error: Option<String>,
+    error: Option<RpcError>,
     id: Option<String>,
 }
 
@@ -94,10 +101,9 @@ fn execute<X: BitcoinCommand>(
         if let Some(output) = x.result {
             Ok(output)
         } else {
-            Err(error::Error::External(
+            Err(error::Error::Rpc(
                 x.error
-                    .expect("`error` should be present if `result` is not")
-                    .to_owned(),
+                    .expect("`error` should be present if `result` is not"),
             ))
         }
     });
@@ -109,12 +115,12 @@ fn execute<X: BitcoinCommand>(
 
 fn get_password() -> io::Result<String> {
     let stdin = stdin();
-    let stdout = stdout();
+    let stderr = stderr();
     let mut stdin_lock = stdin.lock();
-    let mut stdout_lock = stdout.lock();
+    let mut stderr_lock = stderr.lock();
 
-    stdout_lock.write_all("Input RPC password: ".as_bytes())?;
-    stdout_lock.flush()?;
+    stderr_lock.write_all("Input RPC password: ".as_bytes())?;
+    stderr_lock.flush()?;
 
     let mut password = String::new();
     stdin_lock.read_line(&mut password)?;
@@ -149,9 +155,9 @@ fn main() {
 
             println!("{}", segregated_witness_pay_to_script_hash_address);
         } else {
-            println!("`bitcoind` RPC URL '{}' could not be parsed.", &uri_raw);
+            eprintln!("`bitcoind` RPC URL '{}' could not be parsed.", &uri_raw);
         }
     } else {
-        println!("Command line argument '`bitcoind` RPC URL' required.");
+        eprintln!("Command line argument '`bitcoind` RPC URL' required.");
     }
 }
