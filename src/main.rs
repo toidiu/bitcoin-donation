@@ -46,14 +46,16 @@ struct RpcInput<'a> {
 fn execute<X: BitcoinCommand>(
     core: &mut Core,
     client: &Client<HttpConnector, Body>,
-    server: Uri,
-    credentials: Basic,
+    server: &Uri,
+    credentials: &Basic,
     params: &[&str],
 ) -> error::Result<X::OutputFormat> {
-    let mut request = Request::new(Method::Post, server);
+    let mut request = Request::new(Method::Post, server.clone());
     request.headers_mut().set(ContentType::plaintext());
 
-    request.headers_mut().set(Authorization(credentials));
+    request
+        .headers_mut()
+        .set(Authorization(credentials.clone()));
 
     let input = RpcInput {
         jsonrpc: 2.0,
@@ -69,11 +71,11 @@ fn execute<X: BitcoinCommand>(
         .set(ContentLength(encoded_input.len() as u64));
     request.set_body(encoded_input);
 
-    let work = client.request(request).map(|res| {
-        println!("Response: {}", res.status());
-    });
+    let work = client
+        .request(request)
+        .map(|res| format!("Response: {}", res.status()));
 
-    core.run(work)?;
+    println!("{}", core.run(work)?);
 
     Err(error::Error::Http(hyper::Error::Status))
 }
@@ -89,13 +91,12 @@ fn main() {
     };
 
     let pay_to_public_key_hash_address =
-        execute::<GetNewAddress>(&mut core, &client, uri.clone(), credentials.clone(), &[])
-            .unwrap();
+        execute::<GetNewAddress>(&mut core, &client, &uri, &credentials, &[]).unwrap();
     let segregated_witness_pay_to_script_hash_address = execute::<AddWitnessAddress>(
         &mut core,
         &client,
-        uri,
-        credentials,
+        &uri,
+        &credentials,
         &[&pay_to_public_key_hash_address],
     ).unwrap();
 
