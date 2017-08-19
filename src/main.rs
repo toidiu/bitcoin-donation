@@ -21,7 +21,6 @@ trait BitcoinCommand {
     type OutputFormat: for<'de> serde::Deserialize<'de>;
 }
 
-#[derive(Debug)]
 enum GetNewAddress {}
 
 impl BitcoinCommand for GetNewAddress {
@@ -29,12 +28,35 @@ impl BitcoinCommand for GetNewAddress {
     type OutputFormat = String;
 }
 
-#[derive(Debug)]
 enum AddWitnessAddress {}
 
 impl BitcoinCommand for AddWitnessAddress {
     const COMMAND: &'static str = "addwitnessaddress";
     type OutputFormat = String;
+}
+
+// Docs borked, investigate.
+#[derive(Debug, Clone, Deserialize)]
+struct ValidateAddressOutput {
+    isvalid: bool,
+    address: Option<String>,
+    scriptPubKey: Option<String>,
+    ismine: Option<bool>,
+    iswatchonly: Option<bool>,
+    isscript: Option<bool>,
+    pubkey: Option<String>,
+    iscompressed: Option<bool>,
+    account: Option<String>,
+    timestamp: Option<i64>,
+    hdkeypath: Option<String>,
+    hdmasterkeyid: Option<String>,
+}
+
+enum ValidateAddress {}
+
+impl BitcoinCommand for ValidateAddress {
+    const COMMAND: &'static str = "validateaddress";
+    type OutputFormat = ValidateAddressOutput;
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -152,6 +174,20 @@ fn main() {
                 &credentials,
                 &[&pay_to_public_key_hash_address],
             ).unwrap();
+
+            {
+                let address_info = execute::<ValidateAddress>(
+                    &mut core,
+                    &client,
+                    &uri,
+                    &credentials,
+                    &[&segregated_witness_pay_to_script_hash_address],
+                ).unwrap();
+
+                assert_eq!(address_info.isvalid, true);
+                assert_eq!(address_info.ismine, Some(true));
+                assert_eq!(address_info.iswatchonly, Some(false));
+            }
 
             println!("{}", segregated_witness_pay_to_script_hash_address);
         } else {
