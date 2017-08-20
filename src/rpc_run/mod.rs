@@ -63,6 +63,8 @@ pub fn execute<X: BitcoinCommand>(
     params: &[&str],
 ) -> error::Result<X::OutputFormat> {
     let mut request = Request::new(Method::Post, server.clone());
+
+    // TODO: figure out if this should be JSON.
     request.headers_mut().set(ContentType::plaintext());
 
     request
@@ -87,10 +89,13 @@ pub fn execute<X: BitcoinCommand>(
         |response| match response.status() {
             StatusCode::Ok => Ok(response.body().concat2()),
             StatusCode::Unauthorized => Err(error::Error::Auth),
+
+            // TODO: make the `Display` of this nicer.
             _ => Err(error::Error::Http(hyper::Error::Status)),
         },
     );
 
+    // TODO: figure out if this can be merged with `check_status`. Improved performance?
     let decode_body = core.run(check_status)??.map(|body: Chunk| {
         let rpc_output: RpcOutput<X::OutputFormat> = serde_json::from_slice(&body)?;
 
@@ -98,7 +103,7 @@ pub fn execute<X: BitcoinCommand>(
             Ok(output)
         } else {
             Err(error::Error::Rpc(rpc_output.error.unwrap_or(RpcError {
-                code: -32603,
+                code: -32603, // TODO: figure out if this code is correct.
                 message: "RPC error could not be retrieved.".to_owned(),
                 data: None,
             })))

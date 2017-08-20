@@ -130,6 +130,7 @@ fn real_main() -> Result<(), Error> {
     let uri_raw = env::args().nth(1).ok_or(Error::Cli)?;
     let uri = uri_raw.parse().map_err(|_| Error::Uri(uri_raw))?;
 
+    // TODO: figure out how will this handle usernames and multi-wallet.
     let credentials: Basic = Basic {
         username: String::new(),
         password: Some(get_password().expect("Failed to get RPC password")),
