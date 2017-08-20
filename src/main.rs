@@ -37,7 +37,8 @@ mod rpc_run;
 use rpc_run::execute;
 use rpc_run::commands::*;
 
-fn get_password_config() -> io::Result<Option<String>> {
+/// Try to read the RPC password from the Bitcoin Core config.
+fn try_get_password_config() -> io::Result<Option<String>> {
     if let Some(mut config_path) = env::home_dir() {
         config_path.push(".bitcoin");
         config_path.push("bitcoin.conf");
@@ -56,8 +57,9 @@ fn get_password_config() -> io::Result<Option<String>> {
     Ok(None)
 }
 
+/// Call `try_get_password_config`, if it fails get the password from `stdin`.
 fn get_password() -> io::Result<String> {
-    if let Ok(Some(password)) = get_password_config() {
+    if let Ok(Some(password)) = try_get_password_config() {
         Ok(password)
     } else {
         let stdin = stdin();
@@ -117,7 +119,7 @@ fn main() {
                 error.message
             ),
         }
-        exit(1);
+        exit(1); // TODO: possibly change this to something more specific.
     }
 }
 
@@ -130,14 +132,16 @@ fn real_main() -> Result<(), Error> {
 
     let credentials: Basic = Basic {
         username: String::new(),
-        password: Some(
-            get_password().expect("Failed to read RPC password from `stdin`"),
-        ),
+        password: Some(get_password().expect("Failed to get RPC password")),
     };
 
+    // This might fail if the key pool is empty and can not be replenished.
+    // TODO: write a better error for this edge case.
     let pay_to_public_key_hash_address =
         execute::<GetNewAddress>(&mut core, &client, &uri, &credentials, &[])?;
-    let segregated_witness_pay_to_script_hash_address = execute::<AddWitnessAddress>(
+
+    // Make the address SegWit, fixing TXID malleability.
+    let pay_to_script_hash_pay_to_witness_public_key_hash_address = execute::<AddWitnessAddress>(
         &mut core,
         &client,
         &uri,
