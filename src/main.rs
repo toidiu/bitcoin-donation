@@ -42,10 +42,12 @@ fn try_get_password_config() -> io::Result<Option<String>> {
     if let Some(mut config_path) = env::home_dir() {
         config_path.push(".bitcoin");
         config_path.push("bitcoin.conf");
+
         let mut config_file = File::open(config_path)?;
-        let mut raw_config = String::new();
-        config_file.read_to_string(&mut raw_config)?;
-        for line in raw_config.lines() {
+        let mut config = String::new();
+        config_file.read_to_string(&mut config)?;
+
+        for line in config.lines() {
             let mut split = line.splitn(2, "=");
             if split.next() == Some("rpcpassword") {
                 if let Some(password) = split.next() {
