@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
 use {hyper, serde, serde_json};
 use futures::{Future, Stream};
 use hyper::{Body, Chunk, Client, Method, Request, StatusCode, Uri};
@@ -26,6 +27,8 @@ pub mod commands;
 
 pub use self::error::{Error, Result};
 
+const ID: AtomicUsize = ATOMIC_USIZE_INIT;
+
 pub trait BitcoinCommand {
     const COMMAND: &'static str;
     type OutputFormat: for<'de> serde::Deserialize<'de>;
@@ -34,7 +37,7 @@ pub trait BitcoinCommand {
 #[derive(Debug, Clone, Serialize)]
 pub struct RpcInput<'a> {
     jsonrpc: f32,
-    id: Option<&'a str>,
+    id: usize,
     method: &'a str,
     params: &'a [&'a str],
 }
@@ -52,7 +55,7 @@ pub struct RpcError {
 pub struct RpcOutput<T> {
     result: Option<T>,
     error: Option<RpcError>,
-    id: Option<String>,
+    id: usize,
 }
 
 pub fn execute<X: BitcoinCommand>(
@@ -62,6 +65,8 @@ pub fn execute<X: BitcoinCommand>(
     credentials: &Basic,
     params: &[&str],
 ) -> error::Result<X::OutputFormat> {
+    let id = ID.fetch_add(1, Ordering::Relaxed);
+
     let mut request = Request::new(Method::Post, server.clone());
 
     // TODO: figure out if this should be JSON.
@@ -73,7 +78,7 @@ pub fn execute<X: BitcoinCommand>(
 
     let input = RpcInput {
         jsonrpc: 2.0,
-        id: None,
+        id,
         method: X::COMMAND,
         params,
     };
@@ -98,6 +103,16 @@ pub fn execute<X: BitcoinCommand>(
     // TODO: figure out if this can be merged with `check_status`. Improved performance?
     let decode_body = core.run(check_status)??.map(|body: Chunk| {
         let rpc_output: RpcOutput<X::OutputFormat> = serde_json::from_slice(&body)?;
+
+        if rpc_output.id != id {
+            return Err(error::Error::Rpc(RpcError {
+                code: -32603,
+                message: "Wrong ID returned.".to_owned(),
+                data: None,
+            }));
+        }
+
+        println!("{}", id);
 
         if let Some(output) = rpc_output.result {
             Ok(output)
