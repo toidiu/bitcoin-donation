@@ -27,7 +27,7 @@ pub mod commands;
 
 pub use self::error::{Error, Result};
 
-const ID: AtomicUsize = ATOMIC_USIZE_INIT;
+static ID: AtomicUsize = ATOMIC_USIZE_INIT;
 
 pub trait BitcoinCommand {
     const COMMAND: &'static str;
