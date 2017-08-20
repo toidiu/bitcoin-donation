@@ -40,6 +40,7 @@ pub struct RpcInput<'a> {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct RpcError {
     pub code: i32,
     pub message: String,
@@ -47,6 +48,7 @@ pub struct RpcError {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct RpcOutput<T> {
     result: Option<T>,
     error: Option<RpcError>,

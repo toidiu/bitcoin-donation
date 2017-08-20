@@ -33,6 +33,7 @@ impl BitcoinCommand for AddWitnessAddress {
 // Docs borked, investigate.
 #[allow(non_snake_case)]
 #[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ValidateAddressOutput {
     pub isvalid: bool,
     pub address: Option<String>,
@@ -40,6 +41,9 @@ pub struct ValidateAddressOutput {
     pub ismine: Option<bool>,
     pub iswatchonly: Option<bool>,
     pub isscript: Option<bool>,
+    pub script: Option<String>,
+    pub hex: Option<String>,
+    pub addresses: Option<Vec<u8>>,
     pub pubkey: Option<String>,
     pub iscompressed: Option<bool>,
     pub account: Option<String>,
