@@ -112,8 +112,6 @@ pub fn execute<X: BitcoinCommand>(
             }));
         }
 
-        println!("{}", id);
-
         if let Some(output) = rpc_output.result {
             Ok(output)
         } else {
