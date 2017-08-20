@@ -1,5 +1,6 @@
 [package]
 name = "bitcoin-donation"
+description = "Generate a Bitcoin address for donations."
 version = "0.1.0"
 authors = ["Cooper Paul EdenDay <cedenday@protonmail.com>"]
 
