@@ -159,7 +159,7 @@ fn real_main() -> Result<(), Error> {
             &client,
             &uri,
             &credentials,
-            &[&segregated_witness_pay_to_script_hash_address],
+            &[&pay_to_script_hash_pay_to_witness_public_key_hash_address],
         )?;
 
         assert_eq!(address_info.isvalid, true);
@@ -167,7 +167,10 @@ fn real_main() -> Result<(), Error> {
         assert_eq!(address_info.iswatchonly, Some(false));
     }
 
-    println!("{}", segregated_witness_pay_to_script_hash_address);
+    println!(
+        "{}",
+        pay_to_script_hash_pay_to_witness_public_key_hash_address
+    );
 
     Ok(())
 }
