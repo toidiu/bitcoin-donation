@@ -106,7 +106,7 @@ pub fn execute<X: BitcoinCommand>(
 
         if rpc_output.id != id {
             return Err(error::Error::Rpc(RpcError {
-                code: -32603,
+                code: -32_603,
                 message: "Wrong ID returned.".to_owned(),
                 data: None,
             }));
@@ -116,7 +116,7 @@ pub fn execute<X: BitcoinCommand>(
             Ok(output)
         } else {
             Err(error::Error::Rpc(rpc_output.error.unwrap_or(RpcError {
-                code: -32603, // TODO: figure out if this code is correct.
+                code: -32_603, // TODO: figure out if this code is correct.
                 message: "RPC error could not be retrieved.".to_owned(),
                 data: None,
             })))

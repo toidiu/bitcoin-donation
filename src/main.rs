@@ -48,7 +48,7 @@ fn try_get_password_config() -> io::Result<Option<String>> {
         config_file.read_to_string(&mut config)?;
 
         for line in config.lines() {
-            let mut split = line.splitn(2, "=");
+            let mut split = line.splitn(2, '=');
             if split.next() == Some("rpcpassword") {
                 if let Some(password) = split.next() {
                     return Ok(Some(password.to_owned()));
@@ -69,7 +69,7 @@ fn get_password() -> io::Result<String> {
         let mut stdin_lock = stdin.lock();
         let mut stderr_lock = stderr.lock();
 
-        stderr_lock.write_all("Input RPC password: ".as_bytes())?;
+        stderr_lock.write_all(b"Input RPC password: ")?;
         stderr_lock.flush()?;
 
         let mut password = String::new();
