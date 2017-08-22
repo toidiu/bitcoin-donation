@@ -101,7 +101,7 @@ pub fn execute<X: BitcoinCommand>(
     );
 
     // TODO: figure out if this can be merged with `check_status`. Improved performance?
-    let decode_body = core.run(check_status)??.map(|body: Chunk| {
+    let work = core.run(check_status)??.map(|body: Chunk| {
         let rpc_output: RpcOutput<X::OutputFormat> = serde_json::from_slice(&body)?;
 
         if rpc_output.id != id {
@@ -123,7 +123,5 @@ pub fn execute<X: BitcoinCommand>(
         }
     });
 
-    let output: error::Result<X::OutputFormat> = core.run(decode_body)?;
-
-    output
+    core.run(work)?
 }
