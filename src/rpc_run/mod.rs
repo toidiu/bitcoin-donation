@@ -91,6 +91,8 @@ pub fn execute<X: BitcoinCommand>(
     request.set_body(encoded_input);
     use std::str;
 
+
+    //fixme use `then` and handle the potential error!!
     let check_status = client.request(request).and_then( |resp|
 //        |response| match response.status() {
 //            StatusCode::Ok => response.body().concat2(),
