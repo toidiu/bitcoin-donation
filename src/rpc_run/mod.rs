@@ -89,20 +89,29 @@ pub fn execute<X: BitcoinCommand>(
         .headers_mut()
         .set(ContentLength(encoded_input.len() as u64));
     request.set_body(encoded_input);
+    use std::str;
 
-    let check_status = client.request(request).map(
-        |response| match response.status() {
-            StatusCode::Ok => Ok(response.body().concat2()),
-            StatusCode::Unauthorized => Err(error::Error::Auth),
+    let check_status = client.request(request).and_then( |resp|
+//        |response| match response.status() {
+//            StatusCode::Ok => response.body().concat2(),
+//            StatusCode::Unauthorized => Err(error::Error::Auth),
+//            StatusCode::Unauthorized => "asd".to_string(),
 
             // TODO: make the `Display` of this nicer.
-            _ => Err(error::Error::Http(hyper::Error::Status)),
-        },
+//            _ => Err(error::Error::Http(hyper::Error::Status)),
+//        },
+        resp.body().concat2().map(move |chunk_body: hyper::Chunk| {
+            match str::from_utf8(&chunk_body) {
+                Ok(v) => v.to_string(),
+                Err(_) => "{}".to_string(),
+            }
+        })
+
     );
 
     // TODO: figure out if this can be merged with `check_status`. Improved performance?
-    let decode_body = core.run(check_status)??.map(|body: Chunk| {
-        let rpc_output: RpcOutput<X::OutputFormat> = serde_json::from_slice(&body)?;
+    let decode_body = check_status.map(|body| {
+        let rpc_output: RpcOutput<X::OutputFormat> = serde_json::from_str(&body)?;
 
         if rpc_output.id != id {
             return Err(error::Error::Rpc(RpcError {
